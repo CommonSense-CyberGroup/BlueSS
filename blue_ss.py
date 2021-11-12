@@ -26,7 +26,7 @@ Considerations:
 
 Arguments:
     --The process for invoking this script: 'python blue_ss.py -hn <host> -p <protocol> -u <user> -t <token> -c <command> >
-        -This would be: 'python3 ssBlue.py -hn 192.168.1.2 -p http -u admin -t password123 -c list_cameras
+        -This would be: 'python3 blue_ss.py -hn 192.168.1.2 -p http -u admin -t password123 -c list_cameras
 
 To Do:
     -See if we are able to use HTTPS for this....
@@ -44,8 +44,8 @@ import argparse     #https://docs.python.org/3.8/library/argparse.html - Used fo
 ### DEFINE VARIABLES ###
 
 #Set up logging for user activities
-logging_file = "ssblue.log"         #Define log file location for windows
-logger = logging.getLogger('ssBlue CCTV Script Log')  #Define log name
+logging_file = "blue_ss.log"         #Define log file location for windows
+logger = logging.getLogger('blue_ss CCTV Script Log')  #Define log name
 logger.setLevel(logging.DEBUG)              #Set logger level
 fh = logging.FileHandler(logging_file)      #Set the file handler for the logger
 fh.setLevel(logging.DEBUG)                  #Set the file handler log level
