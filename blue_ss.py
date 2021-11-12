@@ -18,6 +18,7 @@ Purpose:
     -This is a POC script to test out the functionality of pyBlueIris to see how we can control a BlueIris CCTV Server
     -The initial intended use case of this script is for it to be called/triggered from a BlueIris server upon an event/trigger/alert using the 'run script' functionality
     -It could also be manually run from the cli for any ad-hoc commands/control that may be needed
+    -This script can also be used as a module in a larger security system program suite in order to interact with BlueIris based on events/alrms from that security system
 
 Considerations:
     -This is just a POC script that is being tested on a BlueIris 4 Server Install on Windows 10
@@ -31,8 +32,9 @@ Arguments:
 To Do:
     -See if we are able to use HTTPS for this....
     -Set up more error checking
+    -Set up more logging
+    -Work on additional commands, and where output should be displayed/sent
 
-    
 '''
 
 ### IMPORT LIBRARIES ###
@@ -40,6 +42,7 @@ import logging      #https://docs.python.org/3.8/library/logging.html - Used to 
 import pyblueiris   #https://pypi.org/project/pyblueiris/ - Used to interface with BlueIris
 from aiohttp import ClientSession   #https://docs.python.org/3.8/library/aiohttp.html - This is for making the connection to the BlueIris server (in this script's case, localhost)
 import argparse     #https://docs.python.org/3.8/library/argparse.html - Used for parsing through arguments handed to the script
+
 
 ### DEFINE VARIABLES ###
 
@@ -52,6 +55,7 @@ fh.setLevel(logging.DEBUG)                  #Set the file handler log level
 logger.addHandler(fh)                       #Add the file handler to logging
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')   #Format how the log messages will look
 fh.setFormatter(formatter)                  #Add the format to the file handler
+
 
 ### CLASSES AND FUNCTIONS ###
 class ssblue_iris:
@@ -91,7 +95,6 @@ class ssblue_iris:
             print(self.bi_server.cameras)
 
         else:
-            print("[!] Invalid Command Given [!]")
             logger.error("Invalid command given! %s", command)
         
 
