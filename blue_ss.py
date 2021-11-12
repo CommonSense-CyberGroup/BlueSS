@@ -16,18 +16,19 @@ License: MIT
 
 Purpose:
     -This is a POC script to test out the functionality of pyBlueIris to see how we can control a BlueIris CCTV Server
-    -The initial intended use case of this script is for it to be called/triggered from a BlueIris server upon an event/trigger/alert using the 'run script' functionality
     -It could also be manually run from the cli for any ad-hoc commands/control that may be needed
-    -This script can also be used as a module in a larger security system program suite in order to interact with BlueIris based on events/alrms from that security system
+    -This script was initially be used as a module in a larger security system program suite in order to interact with BlueIris based on events/alrms from that security system
 
 Considerations:
     -This is just a POC script that is being tested on a BlueIris 4 Server Install on Windows 10
+        -This has NOT been tested on BlueIris 5 but should work
     -Arguments need to be entered from the user for the username, password, host, protocol, and command to keep this script from hardcoding anything that may be compormised
     -Python 3.6+ is required for this script
 
 Arguments:
-    --The process for invoking this script: 'python blue_ss.py -hn <host> -p <protocol> -u <user> -t <token> -c <command> >
+    --The process for invoking this script: 'python blue_ss.py -hn <host> -p <protocol> -u <user> -t <token> -c <command> -a <command args>'
         -This would be: 'python3 blue_ss.py -hn 192.168.1.2 -p http -u admin -t password123 -c list_cameras
+        -Note that some commands may take additional arguments to get the expected result! Refer to the README in order to determine when to use these 
 
 To Do:
     -See if we are able to use HTTPS for this....
@@ -60,11 +61,12 @@ fh.setFormatter(formatter)                  #Add the format to the file handler
 ### CLASSES AND FUNCTIONS ###
 class ssblue_iris:
     """
-        :param host: IP of rFQDN of the BlueIris server to be controlled
-        :param user: The user to log into the host with
-        :param token: The password for the user to log into the host with
-        :param protocol: The connection protocol (either HTTP or HTTPS)
-        :param command: The command to run on the CCTV host
+        :param host: IP or FQDN of the BlueIris server to be controlled (required)
+        :param user: The user to log into the host with (required)
+        :param token: The password for the user to log into the host with (required)
+        :param protocol: The connection protocol (either HTTP or HTTPS) (required)
+        :param command: The command to run on the CCTV host (required)
+        :param arguments: Arguments for the given command if needed
 
         Example:    python3 blue_ss.py -hn 192.168.1.2 -p http -u admin -t password123 -c list_cameras    
     """
@@ -84,13 +86,13 @@ class ssblue_iris:
         logger.info("Closed session to the host server")
 
     #Execute the command that the user/server requested
-    def execute(self, command):
+    def execute(self, command, argvs):
         """
         Required possible commands - 
 
-        :list_cameras:    List the connected cameras to the host
+        :list_cameras:    List the connected cameras to the host. Does not take additional arguments
         """
-        #Determine the command that we received
+        #Determine the command that we received and run it
         if command == "list_cameras":
             print(self.bi_server.cameras)
 
@@ -104,10 +106,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     required_args = parser.add_argument_group('required arguments')
     required_args.add_argument("-hn", dest="host", required=True, type=str) #host arg
-    required_args.add_argument("-p", dest="protocol",required=True, type=int) #port arg
+    required_args.add_argument("-p", dest="protocol",required=True, type=int) #protocol arg
     required_args.add_argument("-u", dest="user",required=True, type=str) #username arg
     required_args.add_argument("-t", dest="token",required=True, type=str) #token/pw arg
-    required_args.add_argument("-c", dest="command",required=True, type=str) #Connecter version arg
+    required_args.add_argument("-c", dest="command",required=True, type=str) #Command arg
+    required_args.add_argument("-a", dest="arguments",required=False, type=str) #Arguments for command if required
 
     args = parser.parse_args()
 
@@ -115,4 +118,4 @@ if __name__ == '__main__':
     server_session = ssblue_iris(args.host, args.user, args.token, args.protocol)
 
     #Execute what we need to based on the arg we were called with
-    ssblue_iris.execute(server_session, args.command)
+    ssblue_iris.execute(server_session, args.command, args.arguments)
