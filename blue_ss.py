@@ -34,7 +34,6 @@ To Do:
     -See if we are able to use HTTPS for this....
     -Set up more error checking
     -Set up more logging
-    -Work on additional commands, and where output should be displayed/sent
 
 '''
 
@@ -93,11 +92,16 @@ class ssblue_iris:
         :list_cameras:    List the connected cameras to the host. Does not take additional arguments
         """
         #Determine the command that we received and run it
+        #List all cameras and send it to the alert users on file
         if command == "list_cameras":
-            print(self.bi_server.cameras)
+            self.send_alert(self.bi_server.cameras)
 
         else:
             logger.error("Invalid command given! %s", command)
+
+    #Send alerts if needed based on the action that was done so the user gets a confirmation or a notification of what happened
+    def send_alert(msg_data):
+        print("SEND ALERTS NOT YET IMPLIMENTED")
         
 
 ### THE THING ###
