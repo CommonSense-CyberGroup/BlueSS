@@ -60,12 +60,12 @@ fh.setFormatter(formatter)                  #Add the format to the file handler
 ### CLASSES AND FUNCTIONS ###
 class ssblue_iris:
     """
-        :param host: IP or FQDN of the BlueIris server to be controlled (required)
-        :param user: The user to log into the host with (required)
-        :param token: The password for the user to log into the host with (required)
-        :param protocol: The connection protocol (either HTTP or HTTPS) (required)
-        :param command: The command to run on the CCTV host (required)
-        :param arguments: Arguments for the given command if needed
+        :param host:        IP or FQDN of the BlueIris server to be controlled (required)
+        :param user:        The user to log into the host with (required)
+        :param token:       The password for the user to log into the host with (required)
+        :param protocol:    The connection protocol (either HTTP or HTTPS) (required)
+        :param command:     The command to run on the CCTV host (required)
+        :param arguments:   Arguments for the given command if needed
 
         Example:    python3 blue_ss.py -hn 192.168.1.2 -p http -u admin -t password123 -c list_cameras    
     """
@@ -89,12 +89,62 @@ class ssblue_iris:
         """
         Required possible commands - 
 
-        :list_cameras:    List the connected cameras to the host. Does not take additional arguments
+        :list_cameras:          List the connected cameras to the host. Does not take additional arguments
+        :camera_details:        List the details for a given camera name (needs arguments passed)
+        :pause_camera_time:     Pause a given camera for a given amount of time (needs arguments passed)
+        :pause_camera_indef:    Indefinitely pause a given camera (needs arguments passed)
+        :unpause_camera:        Unpause a given camera (needs arguments passed)
+        :set_status:            Set the profile status on BlueIris by using profile name (needs arguments passed)
+
         """
         #Determine the command that we received and run it
         #List all cameras and send it to the alert users on file
         if command == "list_cameras":
             self.send_alert(self.bi_server.cameras)
+
+        #Requires command args to be '-a camera=<camera name>'
+        if command == "camera_details":
+            try:
+                self.send_alert(self.bi_server.get_camera_details(argvs))
+                logger.info("Sent camera details!")
+            except:
+                logger.error("Unable to gather information for requested camera: %s", argvs)
+
+        #Requires command args to be '-a camera=<camera name>, seconds=<seconds to pause camera>'
+        if command == "pause_camera_time":
+            try:
+                self.bi_server.pause_camera(argvs)
+                logger.info("Paused camera with following params: %s", argvs)
+                self.send_alert("Pased camera with following params: ", argvs)
+            except:
+                logger.error("Unable to pause camera: %s", argvs)
+
+        #Requires command args to be '-a camera=<camera name>'
+        if command == "pause_camera_indef":
+            try:
+                self.bi_server.pause_camera_indefinitely(argvs)
+                logger.info("Paused camera indefinitely: %s", argvs)
+                self.send_alert("Indefinitely paused camera: ", argvs)
+            except:
+                logger.error("Unable to indefinitely pause camera: %s", argvs)
+        
+        #Requires command args to be '-a camera=<camera name>'
+        if command == "unpause_camera":
+            try:
+                self.bi_server.unpause_camera(argvs)
+                logger.info("Unpaused camera: %s", argvs)
+                self.send_alert("Unpaused camera: ", argvs)
+            except:
+                logger.error("Unable to unpause camera: %s", argvs)
+
+        #Requires command args to be '-a profile_index=<profile name>'
+        if command == "set_status":
+            try:
+                self.bi_server.set_status_profile_by_name(argvs)
+                logger.info("Set profile status to: %s", argvs)
+                self.send_alert("Set camera profile to: ", argvs)
+            except:
+                logger.error("Unable to set profile to: %s", argvs)
 
         else:
             logger.error("Invalid command given! %s", command)
