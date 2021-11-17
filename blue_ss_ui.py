@@ -30,6 +30,7 @@ To Do:
 ### IMPORT LIBRARIES ###
 import wx       # - Used for all things GUI
 import time     # - Used for waiting on user input, and many other time activities
+import threading    # - Used for threading different things outside of the main function
 
 
 ### CLASSES AND FUNCTIONS ###
@@ -40,6 +41,7 @@ class keypad_panel(wx.Panel):
     def __init__(self, parent):
         super().__init__(parent)
         self.last_button_pressed = None
+        self.timer_started = False
         self.create_ui()
 
     #Function to actually create the UI for display within the main screen
@@ -49,7 +51,7 @@ class keypad_panel(wx.Panel):
         font = wx.Font(12, wx.MODERN, wx.NORMAL, wx.NORMAL)
 
         #Set up the user info panel
-        self.code = wx.TextCtrl(self, style=wx.TE_RIGHT)
+        self.code = wx.TextCtrl(self, style=wx.TE_RIGHT, value="Enter Security Code: ")
         self.code.SetFont(font)
         self.code.Disable()
         main_sizer.Add(self.code, 0, wx.EXPAND|wx.ALL, 0)
@@ -85,14 +87,31 @@ class keypad_panel(wx.Panel):
 
         #Append the last button pressed to the running code
         self.code.SetValue(current_code + label)
+        security_code = (current_code + label).split(": ")[1]
 
         #Set the last button pressed
         self.last_button_pressed = label
 
+        #Start the clear timer in a thread so the user only has 10sec to enter the code
+        if len(security_code) > 0 and not self.timer_started:
+            clear_thread = threading.Thread(target=self.on_clear_timer, args=(self,))
+            clear_thread.start()
+            self.time_started = True
+
     #Function to clear the running code
     def on_clear(self, event):
-        self.code.Clear()
-        self.running_code.SetLabel('')
+        self.code.SetValue("Enter Security Code: ")
+        self.running_code.SetLabel("")
+
+    #Timer function clearing the user code after 10sec for security reasons (so it cannot get lseft filled out)
+    def on_clear_timer(self, event):
+        if self.last_button_pressed != None:
+            time.sleep(10)
+            self.code.SetValue("Enter Security Code: ")
+            self.running_code.SetLabel("")
+            self.last_button_pressed = None
+            self.time_started = False
+
 
 #Class for the main window to display
 class ui_frame(wx.Frame):
