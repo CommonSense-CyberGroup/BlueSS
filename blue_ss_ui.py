@@ -59,6 +59,7 @@ def parse_config():
     global alarm_sound, error_sound, beep_sound, armed_sound, passcode, smtp_server, smtp_port, alert_email, alert_password, alert_list
 
     alert_list = [] #List to hold users to send out alerts to
+    camera_list = []    #List to hold the cameras in the CCTV system
 
     #Open the config file
     try:
@@ -137,6 +138,57 @@ def parse_config():
                         alert_list.append(row.split(":")[1].replace("\n", ""))
                 except:
                         logger.error("Unable to read alert_contacts from config file! Please check syntax!")
+                        quit()
+
+                #Pull out BlueIris CCTV settings
+                try:
+                    if "cctv_host:" in row:
+                        cctv_host = (row.split("cctv_host:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read cctv_host from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "protocol:" in row:
+                        protocol = (row.split("protocol:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read protocol from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "cctv_user:" in row:
+                        cctv_user = (row.split("cctv_user:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read cctv_user from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "cctv_password:" in row:
+                        cctv_password = (row.split("cctv_password:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read cctv_password from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "home_profile_name:" in row:
+                        home_profile_name = (row.split("home_profile_name:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read home_profile_name from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "away_profile_name:" in row:
+                        away_profile_name = (row.split("away_profile_name:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read away_profile_name from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "camera_names:" in row:
+                        for cam in row.split(",")[1].replace("\n", ""):
+                            camera_list.append(cam)
+                except:
+                        logger.error("Unable to read camera_names from config file! Please check syntax!")
                         quit()
 
     except:
