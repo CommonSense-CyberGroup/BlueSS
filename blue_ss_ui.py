@@ -9,7 +9,7 @@ BY:
 Created: 11/17/2021
 Updated: 11/18/2021
 
-Version: 1.0.1
+Version: 1.1.2
 
 License: MIT
 
@@ -25,10 +25,8 @@ Considerations:
 To Do:
     -Start adding other script calls to activate the security system
     -Find a way to change color/bold of system status reading
-    -Figure out how we are going to tell if an alert was triggered from an external script? Or will we just play alarms through the external script?
-    -Testing and validation
-        -Logic between switching modes
-    -Set up alert sending through this script
+    -Testing!!
+    -Create requirements file using pipreqs - https://blog.jcharistech.com/2020/11/02/how-to-create-requirements-txt-file-in-python/
 
 '''
 
@@ -37,8 +35,10 @@ import wx       #https://pypi.org/project/wxPython/ - Used for all things GUI
 import time     #https://docs.python.org/3.8/library/time.html - Used for waiting on user input, and many other time activities
 import threading    #https://docs.python.org/3.8/library/threading.html - Used for threading different things outside of the main function
 import logging      #https://docs.python.org/3.8/library/logging.html - Used to log errors and other script information
-from pydub import AudioSegment  #https://pypi.org/project/pydub/ - Used for playing sounds through the speakers
-from pydub.playback import play #https://pypi.org/project/pydub/ - Used for playing sounds through the speakers
+from playsound import playsound     #https://pypi.org/project/playsound/ - Used to play sounds from local device
+import smtplib          #https://docs.python.org/3/library/smtplib.html - Used for sending out email alerts to designated people
+import ssl              #https://docs.python.org/3/library/ssl.html - Used for sending out email alerts to designated people
+from datetime import datetime   #https://docs.python.org/3/library/datetime.html - Used for getting the current time
 
 ### DEFINE VARIABLES ###
 #Set up logging for user activities
@@ -56,7 +56,9 @@ fh.setFormatter(formatter)                  #Add the format to the file handler
 #Function to parse through the config file for system specific information
 def parse_config():
     #Set global variables
-    global alarm_sound, error_sound, beep_sound, armed_sound, passcode
+    global alarm_sound, error_sound, beep_sound, armed_sound, passcode, smtp_server, smtp_port, alert_email, alert_password, alert_list
+
+    alert_list = [] #List to hold users to send out alerts to
 
     #Open the config file
     try:
@@ -101,6 +103,42 @@ def parse_config():
                         logger.error("Unable to read passcode from config file! Please check syntax!")
                         quit()
 
+                #Pull out notification settings
+                try:
+                    if "smtp_server:" in row:
+                        smtp_server = (row.split("smtp_server:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read smtp_server from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "smtp_port:" in row:
+                        smtp_port = (row.split("smtp_port:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read smtp_port from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "alert_email:" in row:
+                        alert_email = (row.split("alert_email:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read alert_email from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "alert_passwrd:" in row:
+                        alert_password = (row.split("alert_passwrd:")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read alert_passwrd from config file! Please check syntax!")
+                        quit()
+
+                try:
+                    if "alert_contact_" in row:
+                        alert_list.append(row.split(":")[1].replace("\n", ""))
+                except:
+                        logger.error("Unable to read alert_contacts from config file! Please check syntax!")
+                        quit()
+
     except:
         logger.critical("Error Occurred when opening config file! Closing!")
         quit()
@@ -118,15 +156,11 @@ class main_panel(wx.Frame):
         self.alarm_started = False  #Holds the status of the alarm sound
         self.stop_alarm = True #Holds if we need to stop the alarm sound or not
         self.button_success = False #Holds if a button was pressed AND it was successful
+        self.stop_clear = False #Holds if we need to stop the clear thread
         self.passcode = passcode #TEST PASSCODE - NON PRODUCTION USE
         self.security_code = ""  #Sets blank security code for validation
         self.disarm_try = 0 #Holds the number of unsuccessful disarm attempts made
         self.status = "STARTUP" #Holds the running status of the system
-        self.alarm_sound = AudioSegment.from_wav(alarm_sound)
-        self.error_sound = AudioSegment.from_wav(error_sound)
-        self.beep_sound = AudioSegment.from_wav(beep_sound)
-        self.armed_sound = AudioSegment.from_wav(armed_sound)
-
 
         #Create the main box that all the sub-boxes will sit in
         panel = wx.Panel(self)
@@ -246,6 +280,9 @@ class main_panel(wx.Frame):
         panel.Fit() 
         self.Show()
 
+        #Uncomment this for enabling full-screen view (production)
+        #self.ShowFullScreen(True)
+
     #Function to output what the current code is to the user info screen
     def update_code(self, event):
         global security_code
@@ -281,7 +318,7 @@ class main_panel(wx.Frame):
     def on_clear_timer(self, event):
         i = 0
         while i < 6:
-            if not self.button_success:
+            if not self.stop_clear:
                 time.sleep(1)
                 i += 1
         
@@ -298,8 +335,8 @@ class main_panel(wx.Frame):
     #Function for threading the countdown and notification to users (so it doesnt lock the application)
     def threaded_countdown(self, event):
         #60sec notice
-        play(self.beep_sound)
         self.code.SetValue("System Arming in 60 seconds!")
+        playsound(beep_sound)
         i = 0
         while i <= 30:
             if not self.button_success:
@@ -310,11 +347,12 @@ class main_panel(wx.Frame):
                 return
 
         #30sec notice
-        play(self.beep_sound)
-        play(self.beep_sound)
         self.code.SetValue("System Arming in 30 seconds!")
+        playsound(beep_sound)
+        time.sleep(1)
+        playsound(beep_sound)
         i = 0
-        while i <= 20:
+        while i <= 19:
             if not self.button_success:
                 time.sleep(1)
                 i += 1
@@ -327,7 +365,7 @@ class main_panel(wx.Frame):
         i = 0
         while i <= 10:
             if not self.button_success:
-                play(self.beep_sound)
+                playsound(beep_sound)
                 time.sleep(1)
                 i += 1
 
@@ -339,10 +377,12 @@ class main_panel(wx.Frame):
             print()
 
             #Set the system status appropriately
-            play(self.armed_sound)
             self.stat.SetValue("System Status:  " + self.status)
             self.code.SetValue("Enter Code: ")
+            playsound(armed_sound)
             logger.info("System has been armed! Status: %s", self.status)
+            self.countdown = False
+            return
         
         else:
             return
@@ -350,7 +390,7 @@ class main_panel(wx.Frame):
     #Function for threading the alarm sound
     def threaded_alarm_sound(self, event):
         while True:
-            play(self.alarm_sound)
+            playsound(alarm_sound)
             
             if self.stop_alarm:
                 break
@@ -358,21 +398,27 @@ class main_panel(wx.Frame):
     #Function for setting system status to "Armed"
     def arm_system(self, event):
         #Verify that a passcode has been entered
-        if self.security_code == "":
-            play(self.error_sound)
-            self.code.SetValue("You must enter a code to arm!")
+        if len(self.security_code) <= 0:
+            #Reset the passcode
+            self.security_code = ""
 
+            self.code.SetValue("You must enter a code to arm!")
+            playsound.playsound(error_sound)
+
+            #Clear the screen
             if not self.timer_started:
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
 
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
+            #Reset the passcode
+            self.security_code = ""
 
             #Error checking if system is already in armed state
             if self.status == "ARMED":
-                play(self.error_sound)
                 self.code.SetValue("System is already armed!")
+                playsound(error_sound)
 
                 if not self.timer_started:
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
@@ -380,37 +426,41 @@ class main_panel(wx.Frame):
 
             #Arm the system
             else:
-                    #Set status to armed
-                    self.status = "ARMED"
+                #Set status to armed
+                self.status = "ARMED"
 
-                    #Stop the clear_timer
-                    self.button_success = True
-                    self.clear_wait_thread.join()
+                #Stop the clear_timer
+                self.stop_clear = True
+                self.clear_wait_thread.join()
 
-                    #Run the thread to countdown and then actually arm things
-                    self.countdown = True
-                    self.thread_countdown = threading.Thread(target=self.threaded_countdown, args=(self,))
-                    self.thread_countdown.start()
+                #Run the thread to countdown and then actually arm things
+                self.countdown = True
+                self.thread_countdown = threading.Thread(target=self.threaded_countdown, args=(self,))
+                self.thread_countdown.start()
                     
         #Error checking for incorrect passcode
         else:
-            play(self.error_sound)
             self.code.SetValue("Incorrect Code! Try again!")
             logger.error("Incorrect passcode entered")
+            playsound(error_sound)
 
             #Start clear thread to clear the screen
             if not self.timer_started:
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
 
-            self.security_code = ""
+        #Reset the passcode
+        self.security_code = ""
     
     #Function for setting system status to "Home"
     def home_system(self, event):
         #Verify that a passcode has been entered
-        if self.security_code == "":
-            play(self.error_sound)
+        if len(self.security_code) <= 0:
+            #Reset the passcode
+            self.security_code = ""
+
             self.code.SetValue("You must enter a code set system to Home!")
+            playsound(error_sound)
 
             #Start clear thread to clear the screen
             if not self.timer_started:
@@ -421,10 +471,13 @@ class main_panel(wx.Frame):
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
 
+            #Reset the passcode
+            self.security_code = ""
+
             #Error checking if system is already in home state
             if self.status == "HOME":
-                play(self.error_sound)
                 self.code.SetValue("System is already set to Home!")
+                playsound(error_sound)
 
                 if not self.timer_started:
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
@@ -443,51 +496,71 @@ class main_panel(wx.Frame):
                 self.alarm_started = False
 
                 self.status = "HOME"
-
+                self.disarm_try = 0
                 self.stat.SetValue("System Status:  HOME")
                 self.code.SetValue("Enter Code: ")
 
         #Error checking if user enters wrong passcode when trying to disarm system
         else:
-            if self.status != "HOME" or self.status != "DISARMED":
-                self.disarm_try += 1
-
-                if self.disarm_try < 3:
-                    play(self.error_sound)
-                    self.code.SetValue("Incorrect Code! Try again! \n[!] 2 attempts remaining!! [!]")
-                    logger.error("Incorrect passcode entered while setting to HOME! Attempt: %s", self.disarm_try)
+            if self.status == "ARMED" or self.status == "CCTV" or self.status == "EMERGENCY" or self.status == "SILENT":
+                if len(self.security_code) > 0:
+                    #Reset the passcode
                     self.security_code = ""
 
-                else:
-                    logger.critical("3 Incorrect disarm attempts made!!!")
-                    print("GET FUCKED")
+                    self.disarm_try += 1
 
-                    #Set off alarm here!
-                    self.stop_alarm = False
-                    if not self.alarm_started:
-                        self.thread_alarm = threading.Thread(target=self.threaded_alarm_sound, args=(self,))
-                        self.thread_alarm.start()
-                        self.alarm_started = True
+                    if self.disarm_try < 3:
+                        self.code.SetValue("Incorrect Code! Try again! \n[!] 2 attempts remaining!! [!]")
+                        logger.error("Incorrect passcode entered while setting to HOME! Attempt: %s", self.disarm_try)
+                        playsound(error_sound)
+                        self.security_code = ""
+
+                    else:
+                        logger.critical("3 Incorrect disarm attempts made!!!")
+
+                        #Set off alarm here!
+                        self.stop_alarm = False
+                        if not self.alarm_started:
+                            self.thread_alarm = threading.Thread(target=self.threaded_alarm_sound, args=(self,))
+                            self.thread_alarm.start()
+                            self.alarm_started = True
+
+                        #Send alerts
+                        #self.send_alert()
+                        self.code.SetValue("Alarm Triggered!! \nAlerts Sent!!")
+
+                        #Clear the screen
+                        if not self.timer_started:
+                            threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                            self.timer_started = True
+
+                #Reset the passcode
+                self.security_code = ""
+
             
             #Error checking for incorrect passcode, but not in an armed state
             else:
-                play(self.error_sound)
                 self.code.SetValue("Incorrect Code! Try again!")
                 logger.error("Incorrect passcode entered")
+                playsound(error_sound)
 
                 #Start clear thread to clear the screen
                 if not self.timer_started:
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                     self.timer_started = True
 
-                self.security_code = ""  
+            #Reset the passcode
+            self.security_code = ""  
 
     #Function for setting system status to "CCTV"
     def cctv_system(self, event):
         #Verify that a passcode has been entered
-        if self.security_code == "":
-            play(self.error_sound)
+        if len(self.security_code) <= 0:
+            #Reset the passcode
+            self.security_code = ""
+
             self.code.SetValue("You must enter a code to arm!")
+            playsound(error_sound)
 
             #Start the clear thread to clear the screen
             if not self.timer_started:
@@ -497,10 +570,13 @@ class main_panel(wx.Frame):
         #Verify that the passcode the user input is correct, and countdown to arming CCTV
         if self.security_code == self.passcode:
 
+            #Reset the passcode
+            self.security_code = ""
+
             #Error checking if the system is already in the CCTV state
             if self.status == "CCTV":
-                play(self.error_sound)
                 self.code.SetValue("System is already in CCTV mode!")
+                playsound(error_sound)
 
                 if not self.timer_started:
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
@@ -512,7 +588,7 @@ class main_panel(wx.Frame):
                 self.status = "CCTV"
 
                 #Stop the clear_timer
-                self.button_success = True
+                self.stop_clear = True
                 self.clear_wait_thread.join()
 
                 #Run the thread to countdown and then actually arm things
@@ -522,22 +598,26 @@ class main_panel(wx.Frame):
 
         #Error checking for incorrect passcode
         else:
-            play(self.error_sound)
             self.code.SetValue("Incorrect Code! Try again!")
             logger.error("Incorrect passcode entered")
+            playsound(error_sound)
 
             if not self.timer_started:
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
 
-            self.security_code = ""
+        #Reset the passcode
+        self.security_code = ""
 
     #Function for setting system status to "Disarmed"
     def disarm_system(self, event):
         #Verify that a passcode has been entered
-        if self.security_code == "":
-            play(self.error_sound)
+        if len(self.security_code) <= 0:
+            #Reset the passcode
+            self.security_code = ""
+
             self.code.SetValue("You must enter a code to disarm!")
+            playsound(error_sound)
 
             #Run clear thread to clear the screen
             if not self.timer_started:
@@ -547,11 +627,13 @@ class main_panel(wx.Frame):
 
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
+            #Reset the passcode
+            self.security_code = ""
 
             #Error checking for if system is already in disarmed state
             if self.status == "DISARMED":
-                play(self.error_sound)
                 self.code.SetValue("System is already Disarmed")
+                playsound(error_sound)
 
                 #Run clear thread to clear the screen
                 if not self.timer_started:
@@ -585,44 +667,55 @@ class main_panel(wx.Frame):
 
                 #Set statuses
                 self.status = "DISARMED"
+                self.disarm_try = 0
                 self.stat.SetValue("System Status:  DISARMED")
                 self.code.SetValue("Enter Code: ")
 
         #If the passcode is entered incorrectly
         else:
             #Error checking if the system is armed and user is entering wrong passcodes
-            if self.status != "HOME" or self.status != "DISARMED":
-                self.disarm_try += 1
+            if self.status == "ARMED" or self.status == "CCTV" or self.status == "EMERGENCY" or self.status == "SILENT":
+                if len(self.security_code) > 0:
+                    self.disarm_try += 1
 
-                if self.disarm_try < 3:
-                    play(self.error_sound)
-                    self.code.SetValue("Incorrect Code! Try again! \n[!] 2 attempts remaining!! [!]")
-                    logger.error("Incorrect passcode entered while disarming! Attempt: %s", self.disarm_try)
-                    self.security_code = ""
+                    if self.disarm_try < 3:
+                        self.code.SetValue("Incorrect Code! Try again! \n[!] 2 attempts remaining!! [!]")
+                        logger.error("Incorrect passcode entered while disarming! Attempt: %s", self.disarm_try)
+                        playsound(error_sound)
+                        self.security_code = ""
 
-                else:
-                    logger.critical("3 Incorrect disarm attempts made!!!")
-                    print("GET FUCKED")
+                    else:
+                        logger.critical("3 Incorrect disarm attempts made!!!")
 
-                    #Set off alarm here!
-                    self.stop_alarm = False
-                    if not self.alarm_started:
-                        self.thread_alarm = threading.Thread(target=self.threaded_alarm_sound, args=(self,))
-                        self.thread_alarm.start()
-                        self.alarm_started = True
+                        #Set off alarm here!
+                        self.stop_alarm = False
+                        if not self.alarm_started:
+                            self.thread_alarm = threading.Thread(target=self.threaded_alarm_sound, args=(self,))
+                            self.thread_alarm.start()
+                            self.alarm_started = True
+
+                        #Send alerts
+                        #self.send_alert()
+                        self.code.SetValue("Alarm Triggered!! \nAlerts Sent!!")
+
+                        #Clear the screen
+                        if not self.timer_started:
+                            threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                            self.timer_started = True
             
             #Error checking for if system is not armed, and trying to enter the unarmed state but bad passcode
             else:
-                play(self.error_sound)
                 self.code.SetValue("Incorrect Code! Try again!")
                 logger.error("Incorrect passcode entered")
+                playsound(error_sound)
 
                 #Start the clear function to clear the screen for the user
                 if not self.timer_started:
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                     self.timer_started = True
 
-                self.security_code = ""
+        #Reset the passcode
+        self.security_code = ""
 
     #Function for setting system status to "EMERGENCY"
     def emergency_system(self, event):
@@ -639,6 +732,18 @@ class main_panel(wx.Frame):
         self.stat.SetValue("System Status:  EMERGENCY")
         self.status = "EMERGENCY"
 
+        #Send alerts
+        #self.send_alert()
+        self.code.SetValue("Alarm Triggered!! \nAlerts Sent!!")
+
+        #Clear the screen
+        if not self.timer_started:
+            threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+            self.timer_started = True
+
+        #Reset the passcode
+        self.security_code = ""
+
     #Function for setting system status to "SILENT"
     def silent_system(self, event):
         #Run scripts to arm system
@@ -647,6 +752,41 @@ class main_panel(wx.Frame):
         self.stat.SetValue("System Status:  SILENT")
         self.status = "SILENT"
 
+        #Send alerts
+        #self.send_alert()
+
+        #Reset the passcode
+        self.security_code = ""
+
+    #Function to send out email alerts in the case that an alarm was triggered
+    def send_alert(self, event):
+        #Create message to send
+        message_beginning = """\
+            BlueSS Alert! - Alarm was triggered on main console!
+            """
+
+        message = f'{message_beginning}Alarm was triggered at {datetime.now()}\nSystem was in {self.status} when the alert was triggered!'
+
+        #Create a secure SSL context
+        context = ssl.create_default_context()
+
+        #Try to log in to server
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(alert_email, alert_password)
+
+            #Iterate through the list of contacts from the config file and send them the email
+            for email in alert_list:
+                try:
+                    server.sendmail(alert_email, email, message)
+                    logger.info("Sent notification to: %s", email)
+                except:
+                    logger.error("Error sending alert email!!!")
+
+        return
+
 ### THE THING ###
 if __name__ == '__main__':
     #Parse through config file here to get variables
@@ -654,5 +794,5 @@ if __name__ == '__main__':
 
     #Call the class to display and run the UI
     app = wx.App(False)
-    main_panel(None, 'BlueSS - CSCG', (600, 300))
+    main_panel(None, 'BlueSS - CSCG', (620, 300))
     app.MainLoop()
