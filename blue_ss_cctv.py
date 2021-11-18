@@ -25,8 +25,8 @@ Considerations:
 To Do:
     -Start adding other script calls to activate the security system
     -Find a way to change color/bold of system status reading
-    -Figure out how we are going to tell if an alert was triggered from an external script? Or will we just play alarms through the external script?
-    -Finish setting up alert sending upon alerts
+    -Testing!!
+    -Create requirements file using pipreqs - https://blog.jcharistech.com/2020/11/02/how-to-create-requirements-txt-file-in-python/
 
 '''
 
@@ -494,7 +494,6 @@ class main_panel(wx.Frame):
 
                 else:
                     logger.critical("3 Incorrect disarm attempts made!!!")
-                    print("GET FUCKED")
 
                     #Set off alarm here!
                     self.stop_alarm = False
@@ -502,6 +501,10 @@ class main_panel(wx.Frame):
                         self.thread_alarm = threading.Thread(target=self.threaded_alarm_sound, args=(self,))
                         self.thread_alarm.start()
                         self.alarm_started = True
+
+                    #Send alerts
+                    #self.send_alert()
+
             
             #Error checking for incorrect passcode, but not in an armed state
             else:
@@ -636,7 +639,6 @@ class main_panel(wx.Frame):
 
                 else:
                     logger.critical("3 Incorrect disarm attempts made!!!")
-                    print("GET FUCKED")
 
                     #Set off alarm here!
                     self.stop_alarm = False
@@ -644,6 +646,9 @@ class main_panel(wx.Frame):
                         self.thread_alarm = threading.Thread(target=self.threaded_alarm_sound, args=(self,))
                         self.thread_alarm.start()
                         self.alarm_started = True
+
+                    #Send alerts
+                    #self.send_alert()
             
             #Error checking for if system is not armed, and trying to enter the unarmed state but bad passcode
             else:
@@ -673,6 +678,9 @@ class main_panel(wx.Frame):
         self.stat.SetValue("System Status:  EMERGENCY")
         self.status = "EMERGENCY"
 
+        #Send alerts
+        #self.send_alert()
+
     #Function for setting system status to "SILENT"
     def silent_system(self, event):
         #Run scripts to arm system
@@ -681,7 +689,10 @@ class main_panel(wx.Frame):
         self.stat.SetValue("System Status:  SILENT")
         self.status = "SILENT"
 
-    #Function to send out email alerts in the case that a detection word is found
+        #Send alerts
+        #self.send_alert()
+
+    #Function to send out email alerts in the case that an alarm was triggered
     def send_alert(self, event):
         #Create message to send
         message_beginning = """\
