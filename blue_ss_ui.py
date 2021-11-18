@@ -19,15 +19,16 @@ Purpose:
 Considerations:
     -This is meant to be run on a Raspberry PI, but has been coded so it can run on a variety of different OS versions
     -Depending on what the user hits/selects, this UI script will call other functions to do things within the security system
+    -When armed and user is trying to change to 'home' or 'disarm', they get 3 attempts before the alarm sets off
 
 To Do:
-    -Set up error checking and validation
     -Start adding other script calls to activate the security system
-    -Find a way to cxhange color of system status reading
-    -If 'clear' button is hit, close the thread so it doesnt wipe what the user is typing again
+    -Find a way to change color of system status reading
+    *-If 'clear' button is hit, close the thread so it doesnt wipe what the user is typing again
     -Determine how/where we will store the passcode (most likely a locked config file)
     -Set up beeping / alarm noises to come from local speaker
     -Figure out how we are going to tell if an alert was triggered
+    -Add logic for switching between modes
 
 '''
 
@@ -61,6 +62,7 @@ class main_panel(wx.Frame):
         self.timer_started = False #Timer for clearing passcode input
         self.passcode = "24682" #TEST PASSCODE - NON PRODUCTION USE
         self.security_code = ""  #Sets blank security code for validation
+        self.disarm_try = 0 #Holds the number of unsuccessful disarm attempts made
 
         #Create the main box that all the sub-boxes will sit in
         panel = wx.Panel(self)
@@ -238,12 +240,17 @@ class main_panel(wx.Frame):
 
     #Function for setting system status to "Armed"
     def arm_system(self, event):
+        #Verify that a passcode has been entered
+        if self.security_code == "":
+            self.code.SetValue("You must enter a code to arm!")
+
         status = "ARMED"
+
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
 
             #Run the thread to countdown and then actually arm things
-            threading.Thread(target=self.threaded_countdown, args=(self,)).start()
+            threading.Thread(target=self.threaded_countdown, args=(self,status,)).start()
 
         else:
             self.code.SetValue("Incorrect Code! Try again!")
@@ -252,11 +259,28 @@ class main_panel(wx.Frame):
     
     #Function for setting system status to "Home"
     def home_system(self, event):
-        self.stat.SetValue("System Status:  HOME") 
+        #Verify that a passcode has been entered
+        if self.security_code == "":
+            self.code.SetValue("You must enter a code to set system to Home!")
+
+        #Verify that the passcode the user input is correct, and countdown to arming
+        if self.security_code == self.passcode:
+
+            self.stat.SetValue("System Status:  HOME")
+
+        else:
+            self.code.SetValue("Incorrect Code! Try again!")
+            logger.error("Incorrect passcode entered")
+            self.security_code = ""  
 
     #Function for setting system status to "CCTV"
     def cctv_system(self, event):
+        #Verify that a passcode has been entered
+        if self.security_code == "":
+            self.code.SetValue("You must enter a code to arm!")
+
         status = "CCTV"
+        
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
 
@@ -270,7 +294,30 @@ class main_panel(wx.Frame):
 
     #Function for setting system status to "Disarmed"
     def disarm_system(self, event):
-        self.stat.SetValue("System Status:  DISARMED") 
+        #Verify that a passcode has been entered
+        if self.security_code == "":
+            self.code.SetValue("You must enter a code to disarm!")
+
+        #Verify that the passcode the user input is correct, and countdown to arming
+        if self.security_code == self.passcode:
+            #Call scripts to disarm security system
+
+            self.stat.SetValue("System Status:  DISARMED")
+            self.code.SetValue("Enter Code: ")
+
+        else:
+            self.disarm_try += 1
+
+            if self.disarm_try < 3:
+                self.code.SetValue("Incorrect Code! Try again! \n[!] 2 attempts remaining!! [!]")
+                logger.error("Incorrect passcode entered while disarming! Attempt: %s", self.disarm_try)
+                self.security_code = ""
+
+            else:
+                logger.critical("3 Incorrect disarm attempts made!!!")
+                print("GET FUCKED")
+
+                #Set off alarm here!
 
     #Function for setting system status to "EMERGENCY"
     def emergency_system(self, event):
