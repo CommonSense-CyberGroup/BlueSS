@@ -244,6 +244,11 @@ class main_panel(wx.Frame):
         if self.security_code == "":
             self.code.SetValue("You must enter a code to arm!")
 
+            if not self.timer_started:
+                threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                self.timer_started = True
+
+
         status = "ARMED"
 
         #Verify that the passcode the user input is correct, and countdown to arming
@@ -255,6 +260,11 @@ class main_panel(wx.Frame):
         else:
             self.code.SetValue("Incorrect Code! Try again!")
             logger.error("Incorrect passcode entered")
+
+            if not self.timer_started:
+                threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                self.timer_started = True
+
             self.security_code = ""
     
     #Function for setting system status to "Home"
@@ -262,6 +272,11 @@ class main_panel(wx.Frame):
         #Verify that a passcode has been entered
         if self.security_code == "":
             self.code.SetValue("You must enter a code to set system to Home!")
+
+            if not self.timer_started:
+                threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                self.timer_started = True
+
 
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
@@ -271,6 +286,11 @@ class main_panel(wx.Frame):
         else:
             self.code.SetValue("Incorrect Code! Try again!")
             logger.error("Incorrect passcode entered")
+
+            if not self.timer_started:
+                threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                self.timer_started = True
+
             self.security_code = ""  
 
     #Function for setting system status to "CCTV"
@@ -278,6 +298,11 @@ class main_panel(wx.Frame):
         #Verify that a passcode has been entered
         if self.security_code == "":
             self.code.SetValue("You must enter a code to arm!")
+
+            if not self.timer_started:
+                threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                self.timer_started = True
+
 
         status = "CCTV"
         
@@ -290,6 +315,11 @@ class main_panel(wx.Frame):
         else:
             self.code.SetValue("Incorrect Code! Try again!")
             logger.error("Incorrect passcode entered")
+
+            if not self.timer_started:
+                threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                self.timer_started = True
+
             self.security_code = "" 
 
     #Function for setting system status to "Disarmed"
@@ -297,6 +327,11 @@ class main_panel(wx.Frame):
         #Verify that a passcode has been entered
         if self.security_code == "":
             self.code.SetValue("You must enter a code to disarm!")
+
+            if not self.timer_started:
+                threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                self.timer_started = True
+
 
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
@@ -329,6 +364,9 @@ class main_panel(wx.Frame):
 
 ### THE THING ###
 if __name__ == '__main__':
+    #Parse through config file here to get variables
+
+    #Call the class to display and run the UI
     app = wx.App(False)
     main_panel(None, 'BlueSS - CSCG', (600, 300))
     app.MainLoop()
