@@ -25,7 +25,7 @@ Considerations:
 To Do:
     -Start adding other script calls to activate the security system
     -Find a way to change color/bold of system status reading
-    *-If 'clear' button is hit, close the thread so it doesnt wipe what the user is typing again
+    *-If 'Disarm' button is hit during arming countdown, stop the countdown and return to 'Home' state
     -Figure out how we are going to tell if an alert was triggered from an external script? Or will we just play alarms through the external script?
     -Testing and validation
         -Logic between switching modes
@@ -117,6 +117,7 @@ class main_panel(wx.Frame):
         self.timer_started = False #Timer for clearing passcode input
         self.alarm_started = False  #Holds the status of the alarm sound
         self.stop_alarm = True #Holds if we need to stop the alarm sound or not
+        self.button_success = False #Holds if a button was pressed AND it was successful
         self.passcode = passcode #TEST PASSCODE - NON PRODUCTION USE
         self.security_code = ""  #Sets blank security code for validation
         self.disarm_try = 0 #Holds the number of unsuccessful disarm attempts made
@@ -189,7 +190,7 @@ class main_panel(wx.Frame):
         selection_box = wx.BoxSizer(wx.VERTICAL)
 
         #Set up the system status panel
-        self.stat = wx.TextCtrl(panel, size=(200,25), style=wx.TE_READONLY, value="System Status: ")
+        self.stat = wx.TextCtrl(panel, size=(200,25), style=wx.TE_READONLY, value="System Status:  " + self.status)
         self.stat.SetFont(font)
         self.stat.Disable()
         selection_sizer.Add(self.stat, 0, wx.EXPAND|wx.ALL, 0)
@@ -262,7 +263,8 @@ class main_panel(wx.Frame):
         
         #Start the clear timer in a thread so the user only has 10sec to enter the code
         if len(self.security_code) > 0 and not self.timer_started:
-            threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+            self.clear_wait_thread = threading.Thread(target=self.on_clear_timer, args=(self,))
+            self.clear_wait_thread.start()
             self.timer_started = True
 
     #Function to clear the running code
@@ -271,14 +273,26 @@ class main_panel(wx.Frame):
         self.running_code.SetLabel("")
         self.security_code = ""
 
+        #Stop the clear_timer
+        self.button_success = True
+        self.clear_wait_thread.join()
+
     #Timer function clearing the user code after 10sec for security reasons (so it cannot get lseft filled out)
     def on_clear_timer(self, event):
-            time.sleep(10)
-            self.code.SetValue("Enter Code: ")
-            self.running_code.SetLabel("")
-            self.timer_started = False
-            self.security_code = ""
-            logger.info("Cleared Security Code due to input timeout")
+        i = 0
+        while i < 10:
+            if not self.button_success:
+                time.sleep(1)
+                i += 1
+        
+            else:
+                return
+
+        self.code.SetValue("Enter Code: ")
+        self.running_code.SetLabel("")
+        self.timer_started = False
+        self.security_code = ""
+        logger.info("Cleared Security Code due to input timeout")
     
     #Function for threading the countdown and notification to users (so it doesnt lock the application)
     def threaded_countdown(self, event):
@@ -348,6 +362,10 @@ class main_panel(wx.Frame):
             else:
                     #Set status to armed
                     self.status = "ARMED"
+
+                    #Stop the clear_timer
+                    self.button_success = True
+                    self.clear_wait_thread.join()
 
                     #Run the thread to countdown and then actually arm things
                     threading.Thread(target=self.threaded_countdown, args=(self,)).start()
@@ -454,6 +472,10 @@ class main_panel(wx.Frame):
             else:
                 #Set status to armed
                 self.status = "CCTV"
+
+                #Stop the clear_timer
+                self.button_success = True
+                self.clear_wait_thread.join()
 
                 #Run the thread to countdown and then actually arm things
                 threading.Thread(target=self.threaded_countdown, args=(self,)).start()
