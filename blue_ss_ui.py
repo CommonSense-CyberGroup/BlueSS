@@ -7,7 +7,7 @@ BY:
     Common Sense Cyber Group
 
 Created: 11/17/2021
-Updated: 11/17/2021
+Updated: 11/18/2021
 
 Version: 1.0.1
 
@@ -63,6 +63,7 @@ class main_panel(wx.Frame):
         self.passcode = "24682" #TEST PASSCODE - NON PRODUCTION USE
         self.security_code = ""  #Sets blank security code for validation
         self.disarm_try = 0 #Holds the number of unsuccessful disarm attempts made
+        self.status = "STARTUP" #Holds the running status of the system
 
         #Create the main box that all the sub-boxes will sit in
         panel = wx.Panel(self)
@@ -209,7 +210,7 @@ class main_panel(wx.Frame):
             logger.info("Cleared Security Code due to input timeout")
     
     #Function for threading the countdown and notification to users (so it doesnt lock the application)
-    def threaded_countdown(self, event, status):
+    def threaded_countdown(self, event):
         #60sec notice
         self.code.SetValue("System Arming in 60 seconds!")
         i = 0
@@ -234,9 +235,9 @@ class main_panel(wx.Frame):
         #Call the scripts to actually arm the system
 
         #Set the system status appropriately
-            self.stat.SetValue("System Status:  " + status)
+            self.stat.SetValue("System Status:  " + self.status)
             self.code.SetValue("Enter Code: ")
-            logger.info("System has been armed! Status: %s", status)
+            logger.info("System has been armed! Status: %s", self.status)
 
     #Function for setting system status to "Armed"
     def arm_system(self, event):
@@ -248,14 +249,22 @@ class main_panel(wx.Frame):
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
 
-
-        status = "ARMED"
-
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
 
-            #Run the thread to countdown and then actually arm things
-            threading.Thread(target=self.threaded_countdown, args=(self,status,)).start()
+            if self.status == "ARMED":
+                self.code.SetValue("System is already armed!")
+
+                if not self.timer_started:
+                    threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                    self.timer_started = True
+
+            else:
+                    #Set status to armed
+                    self.status = "ARMED"
+
+                    #Run the thread to countdown and then actually arm things
+                    threading.Thread(target=self.threaded_countdown, args=(self,)).start()
 
         else:
             self.code.SetValue("Incorrect Code! Try again!")
@@ -277,11 +286,23 @@ class main_panel(wx.Frame):
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
 
-
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
 
-            self.stat.SetValue("System Status:  HOME")
+            if self.status == "HOME":
+                self.code.SetValue("System already set to Home!")
+
+                if not self.timer_started:
+                    threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                    self.timer_started = True
+
+            else:
+                #Scripts to disarm system and set to home status
+
+                self.stat.SetValue("System Status:  HOME")
+                self.code.SetValue("Enter Code: ")
+
+                self.status = "HOME"
 
         else:
             self.code.SetValue("Incorrect Code! Try again!")
@@ -303,14 +324,22 @@ class main_panel(wx.Frame):
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
 
-
-        status = "CCTV"
-        
-        #Verify that the passcode the user input is correct, and countdown to arming
+        #Verify that the passcode the user input is correct, and countdown to arming CCTV
         if self.security_code == self.passcode:
 
-            #Run the thread to countdown and then actually arm things
-            threading.Thread(target=self.threaded_countdown, args=(self,status,)).start()
+            if self.status == "CCTV":
+                self.code.SetValue("System is already in CCTV mode!")
+
+                if not self.timer_started:
+                    threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                    self.timer_started = True
+
+            else:
+                #Set status to armed
+                self.status = "CCTV"
+
+                #Run the thread to countdown and then actually arm things
+                threading.Thread(target=self.threaded_countdown, args=(self,)).start()
 
         else:
             self.code.SetValue("Incorrect Code! Try again!")
@@ -320,7 +349,7 @@ class main_panel(wx.Frame):
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
 
-            self.security_code = "" 
+            self.security_code = ""
 
     #Function for setting system status to "Disarmed"
     def disarm_system(self, event):
@@ -335,10 +364,21 @@ class main_panel(wx.Frame):
 
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
-            #Call scripts to disarm security system
 
-            self.stat.SetValue("System Status:  DISARMED")
-            self.code.SetValue("Enter Code: ")
+            if self.status == "DISARMED":
+                self.code.SetValue("System is already Disarmed")
+
+                if not self.timer_started:
+                    threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                    self.timer_started = True
+
+            else:
+                #Call scripts to disarm security system
+
+                self.status = "DISARMED"
+
+                self.stat.SetValue("System Status:  DISARMED")
+                self.code.SetValue("Enter Code: ")
 
         else:
             self.disarm_try += 1
@@ -358,9 +398,13 @@ class main_panel(wx.Frame):
     def emergency_system(self, event):
         self.stat.SetValue("System Status:  EMERGENCY")
 
+        self.status = "EMERGENCY"
+
     #Function for setting system status to "SILENT"
     def silent_system(self, event):
         self.stat.SetValue("System Status:  SILENT")
+
+        self.status = "SILENT"
 
 ### THE THING ###
 if __name__ == '__main__':
