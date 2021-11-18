@@ -25,7 +25,6 @@ Considerations:
 To Do:
     -Start adding other script calls to activate the security system
     -Find a way to change color/bold of system status reading
-    *-If 'Disarm' button is hit during arming countdown, stop the countdown and return to 'Home' state
     -Figure out how we are going to tell if an alert was triggered from an external script? Or will we just play alarms through the external script?
     -Testing and validation
         -Logic between switching modes
@@ -115,6 +114,7 @@ class main_panel(wx.Frame):
 
         #Define class specific variables
         self.timer_started = False #Timer for clearing passcode input
+        self.countdown = False #Holds if the arming countdown has started yet
         self.alarm_started = False  #Holds the status of the alarm sound
         self.stop_alarm = True #Holds if we need to stop the alarm sound or not
         self.button_success = False #Holds if a button was pressed AND it was successful
@@ -280,7 +280,7 @@ class main_panel(wx.Frame):
     #Timer function clearing the user code after 10sec for security reasons (so it cannot get lseft filled out)
     def on_clear_timer(self, event):
         i = 0
-        while i < 10:
+        while i < 6:
             if not self.button_success:
                 time.sleep(1)
                 i += 1
@@ -288,6 +288,7 @@ class main_panel(wx.Frame):
             else:
                 return
 
+        #Set statuses
         self.code.SetValue("Enter Code: ")
         self.running_code.SetLabel("")
         self.timer_started = False
@@ -301,8 +302,12 @@ class main_panel(wx.Frame):
         self.code.SetValue("System Arming in 60 seconds!")
         i = 0
         while i <= 30:
-            time.sleep(1)
-            i += 1
+            if not self.button_success:
+                time.sleep(1)
+                i += 1
+
+            else:
+                return
 
         #30sec notice
         play(self.beep_sound)
@@ -310,24 +315,37 @@ class main_panel(wx.Frame):
         self.code.SetValue("System Arming in 30 seconds!")
         i = 0
         while i <= 20:
-            time.sleep(1)
-            i += 1
+            if not self.button_success:
+                time.sleep(1)
+                i += 1
+
+            else:
+                return
 
         #10sec notice
         self.code.SetValue("System Arming in 10 seconds!")
         i = 0
         while i <= 10:
-            play(self.beep_sound)
-            time.sleep(1)
-            i += 1
+            if not self.button_success:
+                play(self.beep_sound)
+                time.sleep(1)
+                i += 1
+
+            else:
+                return
 
         #Call the scripts to actually arm the system
+        if not self.button_success:
+            print()
 
-        #Set the system status appropriately
+            #Set the system status appropriately
             play(self.armed_sound)
             self.stat.SetValue("System Status:  " + self.status)
             self.code.SetValue("Enter Code: ")
             logger.info("System has been armed! Status: %s", self.status)
+        
+        else:
+            return
 
     #Function for threading the alarm sound
     def threaded_alarm_sound(self, event):
@@ -351,6 +369,7 @@ class main_panel(wx.Frame):
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
 
+            #Error checking if system is already in armed state
             if self.status == "ARMED":
                 play(self.error_sound)
                 self.code.SetValue("System is already armed!")
@@ -359,6 +378,7 @@ class main_panel(wx.Frame):
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                     self.timer_started = True
 
+            #Arm the system
             else:
                     #Set status to armed
                     self.status = "ARMED"
@@ -368,13 +388,17 @@ class main_panel(wx.Frame):
                     self.clear_wait_thread.join()
 
                     #Run the thread to countdown and then actually arm things
-                    threading.Thread(target=self.threaded_countdown, args=(self,)).start()
-
+                    self.countdown = True
+                    self.thread_countdown = threading.Thread(target=self.threaded_countdown, args=(self,))
+                    self.thread_countdown.start()
+                    
+        #Error checking for incorrect passcode
         else:
             play(self.error_sound)
             self.code.SetValue("Incorrect Code! Try again!")
             logger.error("Incorrect passcode entered")
 
+            #Start clear thread to clear the screen
             if not self.timer_started:
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
@@ -383,11 +407,12 @@ class main_panel(wx.Frame):
     
     #Function for setting system status to "Home"
     def home_system(self, event):
-                #Verify that a passcode has been entered
+        #Verify that a passcode has been entered
         if self.security_code == "":
             play(self.error_sound)
             self.code.SetValue("You must enter a code set system to Home!")
 
+            #Start clear thread to clear the screen
             if not self.timer_started:
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
@@ -396,6 +421,7 @@ class main_panel(wx.Frame):
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
 
+            #Error checking if system is already in home state
             if self.status == "HOME":
                 play(self.error_sound)
                 self.code.SetValue("System is already set to Home!")
@@ -405,6 +431,11 @@ class main_panel(wx.Frame):
                     self.timer_started = True
 
             else:
+                #Shut off the alarm if it is running
+                if self.alarm_started:
+                    self.stop_alarm = True
+                    self.thread_alarm.join()
+
                 #Call scripts to disarm security system
 
                 #Set variables to disarm alarm sound
@@ -416,6 +447,7 @@ class main_panel(wx.Frame):
                 self.stat.SetValue("System Status:  HOME")
                 self.code.SetValue("Enter Code: ")
 
+        #Error checking if user enters wrong passcode when trying to disarm system
         else:
             if self.status != "HOME" or self.status != "DISARMED":
                 self.disarm_try += 1
@@ -433,14 +465,17 @@ class main_panel(wx.Frame):
                     #Set off alarm here!
                     self.stop_alarm = False
                     if not self.alarm_started:
-                        threading.Thread(target=self.threaded_alarm_sound, args=(self,)).start()
+                        self.thread_alarm = threading.Thread(target=self.threaded_alarm_sound, args=(self,))
+                        self.thread_alarm.start()
                         self.alarm_started = True
             
+            #Error checking for incorrect passcode, but not in an armed state
             else:
                 play(self.error_sound)
                 self.code.SetValue("Incorrect Code! Try again!")
                 logger.error("Incorrect passcode entered")
 
+                #Start clear thread to clear the screen
                 if not self.timer_started:
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                     self.timer_started = True
@@ -454,6 +489,7 @@ class main_panel(wx.Frame):
             play(self.error_sound)
             self.code.SetValue("You must enter a code to arm!")
 
+            #Start the clear thread to clear the screen
             if not self.timer_started:
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
@@ -461,6 +497,7 @@ class main_panel(wx.Frame):
         #Verify that the passcode the user input is correct, and countdown to arming CCTV
         if self.security_code == self.passcode:
 
+            #Error checking if the system is already in the CCTV state
             if self.status == "CCTV":
                 play(self.error_sound)
                 self.code.SetValue("System is already in CCTV mode!")
@@ -469,6 +506,7 @@ class main_panel(wx.Frame):
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                     self.timer_started = True
 
+            #Arm to CCTV state
             else:
                 #Set status to armed
                 self.status = "CCTV"
@@ -478,8 +516,11 @@ class main_panel(wx.Frame):
                 self.clear_wait_thread.join()
 
                 #Run the thread to countdown and then actually arm things
-                threading.Thread(target=self.threaded_countdown, args=(self,)).start()
+                self.countdown = True
+                self.thread_countdown = threading.Thread(target=self.threaded_countdown, args=(self,))
+                self.thread_countdown.start()
 
+        #Error checking for incorrect passcode
         else:
             play(self.error_sound)
             self.code.SetValue("Incorrect Code! Try again!")
@@ -498,6 +539,7 @@ class main_panel(wx.Frame):
             play(self.error_sound)
             self.code.SetValue("You must enter a code to disarm!")
 
+            #Run clear thread to clear the screen
             if not self.timer_started:
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
@@ -506,27 +548,49 @@ class main_panel(wx.Frame):
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
 
+            #Error checking for if system is already in disarmed state
             if self.status == "DISARMED":
                 play(self.error_sound)
                 self.code.SetValue("System is already Disarmed")
 
+                #Run clear thread to clear the screen
                 if not self.timer_started:
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                     self.timer_started = True
 
+            #If the arming countdown has started but the user hits disarm to stop it, do so
+            if self.countdown:
+                self.button_success = True
+                self.thread_countdown.join()
+
+                self.code.SetValue("Stopped system from arming!")
+
+                #Run clear thread to clear the screen
+                if not self.timer_started:
+                    threading.Thread(target=self.on_clear_timer, args=(self,)).start()
+                    self.timer_started = True
+
+            #Disarm the system
             else:
+                #Shut off the alarm if it is running
+                if self.alarm_started:
+                    self.stop_alarm = True
+                    self.thread_alarm.join()
+
                 #Call scripts to disarm security system
 
                 #Set variables to disarm alarm sound
                 self.stop_alarm = True
                 self.alarm_started = False
 
+                #Set statuses
                 self.status = "DISARMED"
-
                 self.stat.SetValue("System Status:  DISARMED")
                 self.code.SetValue("Enter Code: ")
 
+        #If the passcode is entered incorrectly
         else:
+            #Error checking if the system is armed and user is entering wrong passcodes
             if self.status != "HOME" or self.status != "DISARMED":
                 self.disarm_try += 1
 
@@ -543,14 +607,17 @@ class main_panel(wx.Frame):
                     #Set off alarm here!
                     self.stop_alarm = False
                     if not self.alarm_started:
-                        threading.Thread(target=self.threaded_alarm_sound, args=(self,)).start()
+                        self.thread_alarm = threading.Thread(target=self.threaded_alarm_sound, args=(self,))
+                        self.thread_alarm.start()
                         self.alarm_started = True
             
+            #Error checking for if system is not armed, and trying to enter the unarmed state but bad passcode
             else:
                 play(self.error_sound)
                 self.code.SetValue("Incorrect Code! Try again!")
                 logger.error("Incorrect passcode entered")
 
+                #Start the clear function to clear the screen for the user
                 if not self.timer_started:
                     threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                     self.timer_started = True
@@ -562,7 +629,8 @@ class main_panel(wx.Frame):
         #Set off alarm here!
         self.stop_alarm = False
         if not self.alarm_started:
-            threading.Thread(target=self.threaded_alarm_sound, args=(self,)).start()
+            self.thread_alarm = threading.Thread(target=self.threaded_alarm_sound, args=(self,))
+            self.thread_alarm.start()
             self.alarm_started = True
 
         #Run scripts to arm system
