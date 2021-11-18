@@ -366,7 +366,7 @@ class main_panel(wx.Frame):
         while i <= 10:
             if not self.button_success:
                 playsound(beep_sound)
-                time.sleep(1)
+                time.sleep(.5)
                 i += 1
 
             else:
@@ -374,14 +374,20 @@ class main_panel(wx.Frame):
 
         #Call the scripts to actually arm the system
         if not self.button_success:
-            print()
+            if self.status == "ARMED":
+                print()
 
-            #Set the system status appropriately
+            if self.status == "CCTV":
+                print()
+
+            #Set the system status and variables appropriately
             self.stat.SetValue("System Status:  " + self.status)
             self.code.SetValue("Enter Code: ")
             playsound(armed_sound)
             logger.info("System has been armed! Status: %s", self.status)
             self.countdown = False
+            self.stop_clear = True
+            self.timer_started = False
             return
         
         else:
@@ -403,7 +409,7 @@ class main_panel(wx.Frame):
             self.security_code = ""
 
             self.code.SetValue("You must enter a code to arm!")
-            playsound.playsound(error_sound)
+            playsound(error_sound)
 
             #Clear the screen
             if not self.timer_started:
@@ -623,7 +629,6 @@ class main_panel(wx.Frame):
             if not self.timer_started:
                 threading.Thread(target=self.on_clear_timer, args=(self,)).start()
                 self.timer_started = True
-
 
         #Verify that the passcode the user input is correct, and countdown to arming
         if self.security_code == self.passcode:
