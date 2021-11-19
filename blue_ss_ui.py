@@ -24,9 +24,10 @@ Considerations:
 
 To Do:
     -Start adding other script calls to activate the security system
-    -Find a way to change color/bold of system status reading
     -Testing!!
-    -Create requirements file using pipreqs - https://blog.jcharistech.com/2020/11/02/how-to-create-requirements-txt-file-in-python/
+    -Do we want to try and get responses or anything from the cctv / sensor scripts that we run? Or just blindly run them?
+        -If we can at least get some sort of a success/fail response, that would be ideal
+        -Can we add sockets logic in order to make a secure connection between this device and the othes (or at least BI Server) to cummunicate the status?
 
 '''
 
@@ -39,6 +40,7 @@ from playsound import playsound     #https://pypi.org/project/playsound/ - Used 
 import smtplib          #https://docs.python.org/3/library/smtplib.html - Used for sending out email alerts to designated people
 import ssl              #https://docs.python.org/3/library/ssl.html - Used for sending out email alerts to designated people
 from datetime import datetime   #https://docs.python.org/3/library/datetime.html - Used for getting the current time
+import subprocess   #https://docs.python.org/3/library/subprocess.html - Used for subprocessing other scripts to arm and disarm the connected systems
 
 ### DEFINE VARIABLES ###
 #Set up logging for user activities
@@ -212,7 +214,7 @@ class main_panel(wx.Frame):
         self.passcode = passcode #TEST PASSCODE - NON PRODUCTION USE
         self.security_code = ""  #Sets blank security code for validation
         self.disarm_try = 0 #Holds the number of unsuccessful disarm attempts made
-        self.status = "STARTUP" #Holds the running status of the system
+        self.status = "DISARM" #Holds the running status of the system
 
         #Create the main box that all the sub-boxes will sit in
         panel = wx.Panel(self)
