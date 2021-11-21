@@ -26,7 +26,6 @@ Considerations:
 
 To Do:
     -Add in files for human body detection
-    -Integrate more logging
     -Integrate error catching
     -TESTING!!!!
 
@@ -236,6 +235,7 @@ class check_faces:
 
                 #Save the image for processing later
                 cv2.imwrite(datetime.now().strftime(save_location), frame)
+                logger.info("Face was detected!! %s", name)
 
                 #Send an alert since we detected a face in the video
                 self.send_alert(self, frame)
@@ -253,6 +253,7 @@ class check_faces:
 
                 #Save the image for processing later
                 cv2.imwrite(datetime.now().strftime(save_location), frame)
+                logger.info("Face was detected!! %s", name)
 
                 #Send an alert since we detected a face in the video
                 self.send_alert(self, frame)
@@ -357,3 +358,6 @@ if __name__ == '__main__':
 
     #Parse through config file to get the info we need
     parse_config()
+
+    #Start processing the given fike
+    check_faces(args)
