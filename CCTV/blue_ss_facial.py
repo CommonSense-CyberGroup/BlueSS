@@ -237,6 +237,9 @@ class check_faces:
                 #Save the image for processing later
                 cv2.imwrite(datetime.now().strftime(save_location), frame)
 
+                #Send an alert since we detected a face in the video
+                self.send_alert(self, frame)
+
             #Loop through the recognized faces (profile)
             for ((a, b, c, d), name) in zip(profile_faces, names):
                 if name == "Unknown":
@@ -250,6 +253,9 @@ class check_faces:
 
                 #Save the image for processing later
                 cv2.imwrite(datetime.now().strftime(save_location), frame)
+
+                #Send an alert since we detected a face in the video
+                self.send_alert(self, frame)
         
     #Function to use LBP against the face snapshots captured to see if we can pull out a match (Use only the images that have faces detected so we do not have to process the whole file again)
     def lbp_processing(self, image):
@@ -311,7 +317,7 @@ class check_faces:
         print()
 
     #Function to send out email alerts in the case that a face or body was found
-    def send_alert(self):
+    def send_alert(self, image):
         #Create message to send
         message_beginning = """\
             BlueSS Alert! - A Face Or Body Was Detected!
