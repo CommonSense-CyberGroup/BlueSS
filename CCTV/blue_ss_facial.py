@@ -19,28 +19,28 @@ Purpose:
         change this to run continuously looking to pull any new file out of the saved videos location
 
 Considerations:
-    -The Haar Cascade and LBP models are used in this script for recognition. We use DLIB in order to create our dataset to run a face againse
+    -The Haar Cascade and LBP models are used in this script for recognition. We use DLIB in order to create our dataset to run a face against
         *DLIB IS OUTSIDE THE SCOPE OF THIS SCRIPT AND WE USE A PRE-PROCESSED FILE FOR EVERYTHING AS THIS CAN TAKE A LONG TIME*
     -This script is specifically made to run against video files (mp4)
     -Any successful findings will get a rectangle drawn around the snapshot, a name if applicable, and then included in the email
 
 To Do:
     -Add in files for human body detection
+    -Integrate more logging
+    -Integrate error catching
+    -TESTING!!!!
 
 """
 
 ### IMPORT LIBRARIES ###
 from cv2 import cv2     # - cv2 library for image and video processing
 from datetime import datetime   #https://docs.python.org/3.8/library/datetime.html - Processing dates and times
-import os   #https://docs.python.org/3.8/library/os.html - OS related things
 from os.path import dirname   #https://docs.python.org/3.8/library/os.html - For using OS features on the local machine
 import logging  #https://docs.python.org/3.8/library/logging.html - Used for logging issues and actions in the script
 import argparse     #https://docs.python.org/3.8/library/argparse.html - Used for parsing through arguments handed to the script
 import time     #https://docs.python.org/3.8/library/time.html - Used for waiting on different things
 import face_recognition #https://pypi.org/project/face-recognition/ - For actually recognising and processing facial images
-from imutils import paths   #https://docs.python.org/3.8/library/imutils.html
 import pickle   #https://docs.python.org/3.8/library/pickle.html - For saving files to the local machine and later use
-import ctypes   #https://docs.python.org/3.8/library/ctypes.html
 import smtplib  #https://docs.python.org/3.8/library/smtplib.html - For email using SSL and TLS
 import ssl     #https://docs.python.org/3.8/library/ssl.html - For email using SSL and TLS
 
@@ -74,7 +74,7 @@ def parse_config():
                 #Pull out files we need for recognition
                 try:
                     if "dlib:" in row:
-                        dlib = (row.split("dlib:")[1].replace("\n", ""))
+                        dlib = pickle.loads(open((row.split("dlib:")[1].replace("\n", "")), "rb").read())
                 except:
                         logger.error("Unable to read dlib file from config file! Please check syntax!")
                         quit()
@@ -109,7 +109,7 @@ def parse_config():
 
                 try:
                     if "save_location:" in row:
-                        save_location = (row.split("save_location:")[1].replace("\n", ""))
+                        save_location = f'{(row.split("save_location:")[1].replace("\n", ""))}{"%Y%m%d-%H%M%S%f_face.png"}'
                 except:
                         logger.error("Unable to read save_location file from config file! Please check syntax!")
                         quit()
@@ -158,7 +158,7 @@ def parse_config():
 class check_faces:
     """
         :param time:        Time to wait before running this script on the given file (seconds)
-        :param file:        The file to process and look for bodies or faces
+        :param file:        The file to process and look for bodies or faces (required)
 
         Example:    python3 blue_ss.py -t 15 -f alert1.mp4
     """
@@ -183,15 +183,161 @@ class check_faces:
 
     #Function to use Haar against the video file. This usally works better so we use it first. If it doesnt get a face, we skip over to the LBP function
     def haar_processing(self, process_file):
-        print()
+        #Read the incoming video file and change colors to for processing
+        ret, frame = cv2.VideoCapture(process_file).read()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = haar_frontal.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60), flags=cv2.CASCADE_SCALE_IMAGE)
+        profile_faces = haar_profile.detectMultiScale(gray,scaleFactor=1.1,minNeighbors=5,minSize=(60, 60),flags=cv2.CASCADE_SCALE_IMAGE)
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    #Function to use LBP against the face snapshots captured to see if we can pull out a match
-    def lbp_processing(self):
-        print()
+        #Define the facial embeddings for face in input
+        encodings = face_recognition.face_encodings(rgb)
+        names = []
+
+        #Loop through the facial embeddings incase we have multiple embeddings for multiple fcaes
+        for encoding in encodings:
+            #Compare encodings with encodings in data["encodings"]
+            #Matches contain array with boolean values and True for the embeddings it matches closely and False for rest
+            matches = face_recognition.compare_faces(dlib["encodings"],encoding)
+
+            #set name to "unknown" if no encoding matches
+            name = "Unknown"
+
+            #Check to see if we have found a match
+            if True in matches:
+                #Find positions at which we get True and store them
+                matchedIdxs = [i for (i, b) in enumerate(matches) if b]
+                counts = {}
+
+                #Loop through the matched indexes and maintain a count for each recognized face face
+                for i in matchedIdxs:
+                    #Check the names at respective indexes we stored in matchedIdxs
+                    name = dlib["names"][i]
+
+                    #Increase count for the name we got
+                    counts[name] = counts.get(name, 0) + 1
+
+                #Set name which has highest count
+                name = max(counts, key=counts.get)
+
+            #Update the list of names
+            names.append(name)
+
+            #Loop through the recognized faces (frontal)
+            for ((x, y, w, h), name) in zip(faces, names):
+                if name == "Unknown":
+                    #Call the LBP function to see if we get a match there. If we don't, call it unamed
+                    name = self.lbp_processing(self, frame)
+
+                #Rescale the face coordinates and draw the predicted face name on the image
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
+                cv2.putText(frame, name, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                cv2.putText(frame, str(datetime.now()),(10,30), cv2.FONT_HERSHEY_SIMPLEX, .5,(0,0,0),1,cv2.LINE_AA)
+
+                #Save the image for processing later
+                cv2.imwrite(datetime.now().strftime(save_location), frame)
+
+            #Loop through the recognized faces (profile)
+            for ((a, b, c, d), name) in zip(profile_faces, names):
+                if name == "Unknown":
+                    #Call the LBP function to see if we get a match there. If we don't, call it unamed
+                    name = self.lbp_processing(self, frame)
+
+                #Rescale the face coordinates and draw the predicted face name on the image
+                cv2.rectangle(frame, (a, b), (a + c, b + d), (0, 0, 255), 1)
+                cv2.putText(frame, name, (a, b), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                cv2.putText(frame, str(datetime.now()),(10,30), cv2.FONT_HERSHEY_SIMPLEX, .5,(0,0,0),1,cv2.LINE_AA)
+
+                #Save the image for processing later
+                cv2.imwrite(datetime.now().strftime(save_location), frame)
+        
+    #Function to use LBP against the face snapshots captured to see if we can pull out a match (Use only the images that have faces detected so we do not have to process the whole file again)
+    def lbp_processing(self, image):
+        #Set name
+        name = "Unknown"
+
+        #Convert image to Greyscale for haarcascade
+        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        faces = lbp_frontal.detectMultiScale(gray,scaleFactor=1.1,minNeighbors=5,minSize=(60, 60),flags=cv2.CASCADE_SCALE_IMAGE)
+        profile_faces = lbp_profile.detectMultiScale(gray,scaleFactor=1.1,minNeighbors=5,minSize=(60, 60),flags=cv2.CASCADE_SCALE_IMAGE)
+        
+        #Define the facial embeddings for face in input
+        encodings = face_recognition.face_encodings(rgb)
+        names = []
+
+        #Loop through the facial embeddings incase we have multiple faces detected
+        for encoding in encodings:
+            #Compare encodings with encodings in data["encodings"]
+            #Matches contain array with boolean values and True for the embeddings it matches closely and False for rest
+            matches = face_recognition.compare_faces(dlib["encodings"], encoding)
+
+            #Check to see if we have found a match
+            if True in matches:
+                #Find positions at which we get True and store them
+                matchedIdxs = [i for (i, b) in enumerate(matches) if b]
+                counts = {}
+                #Loop through the matched indexes and maintain a count for each recognized face face
+                for i in matchedIdxs:
+                    #Check the names at respective indexes we stored in matchedIdxs
+                    name = dlib["names"][i]
+
+                    #Increase count for the name we got
+                    counts[name] = counts.get(name, 0) + 1
+
+                    #Set name which has highest count
+                    name = max(counts, key=counts.get)
+        
+                #Update the list of names
+                names.append(name)
+
+                #Loop through the recognized faces (frontal)
+                for ((x, y, w, h), name) in zip(faces, names):
+                    #If still an unknown name, pass so we continue
+                    if name == "Unknown":
+                        pass
+
+                #Loop through the recognized faces (profile)
+                for ((a, b, c, d), name) in zip(profile_faces, names):
+                    #If still an unknown name, pass so we continue
+                    if name == "Unknown":
+                        pass
+
+        #Return the name if one was found
+        return name
 
     #Function to check the video for any human-forms
     def human_processing(self, process_file):
         print()
+
+    #Function to send out email alerts in the case that a face or body was found
+    def send_alert(self):
+        #Create message to send
+        message_beginning = """\
+            BlueSS Alert! - A Face Or Body Was Detected!
+            """
+
+        message = f'{message_beginning}A Face or Body was detected at {datetime.now()}\n'
+
+        #Create a secure SSL context
+        context = ssl.create_default_context()
+
+        #Try to log in to server
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(alert_email, alert_password)
+
+            #Iterate through the list of contacts from the config file and send them the email
+            for email in alert_list:
+                try:
+                    server.sendmail(alert_email, email, message)
+                    logger.info("Sent notification to: %s", email)
+                except:
+                    logger.error("Error sending alert email!!!")
+
+        return
 
 ### THE THING ###
 if __name__ == '__main__':
