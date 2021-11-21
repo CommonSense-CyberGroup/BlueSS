@@ -15,6 +15,8 @@ Purpose:
     -The purpose of this script is to run facial and human recognition on alerts and recordings from the BlueIris CCTV System
     -Upon seeing a face (positive ID or unknown) or a human body, an alert will be sent to the configured list of recipients via Email
     -This script was built intended to be used in Windoes, buut is written in such a way that it should work on most platforms
+    -This first iteration / version of the script is meant to be called from a bash file (which is called from BlueIris upon detection). If this prooves to not work well, we will then
+        change this to run continuously looking to pull any new file out of the saved videos location
 
 Considerations:
     -The Haar Cascade and LBP models are used in this script for recognition. We use DLIB in order to create our dataset to run a face againse
@@ -33,6 +35,14 @@ from datetime import datetime   #https://docs.python.org/3.8/library/datetime.ht
 import os   #https://docs.python.org/3.8/library/os.html - OS related things
 from os.path import dirname   #https://docs.python.org/3.8/library/os.html - For using OS features on the local machine
 import logging  #https://docs.python.org/3.8/library/logging.html - Used for logging issues and actions in the script
+import argparse     #https://docs.python.org/3.8/library/argparse.html - Used for parsing through arguments handed to the script
+import time     #https://docs.python.org/3.8/library/time.html - Used for waiting on different things
+import face_recognition #https://pypi.org/project/face-recognition/ - For actually recognising and processing facial images
+from imutils import paths   #https://docs.python.org/3.8/library/imutils.html
+import pickle   #https://docs.python.org/3.8/library/pickle.html - For saving files to the local machine and later use
+import ctypes   #https://docs.python.org/3.8/library/ctypes.html
+import smtplib  #https://docs.python.org/3.8/library/smtplib.html - For email using SSL and TLS
+import ssl     #https://docs.python.org/3.8/library/ssl.html - For email using SSL and TLS
 
 ### DEFINE VARIABLES ###
 project_root = dirname(__file__)   #Defines the root directory the script is currently in
@@ -104,8 +114,6 @@ def parse_config():
                         logger.error("Unable to read save_location file from config file! Please check syntax!")
                         quit()
 
-
-
                 #Pull out notification settings
                 try:
                     if "smtp_server:" in row:
@@ -146,8 +154,54 @@ def parse_config():
         logger.critical("Error Occurred when opening config file! Closing!")
         quit()
 
+#Class to do all the processing work on the files
+class check_faces:
+    """
+        :param time:        Time to wait before running this script on the given file (seconds)
+        :param file:        The file to process and look for bodies or faces
+
+        Example:    python3 blue_ss.py -t 15 -f alert1.mp4
+    """
+    def __init__(self, args):
+        #Init and wait if the user asked us to. Then run 
+        try:
+            if args.time > 0:
+                time.sleep(args.time)
+
+        except:
+            pass
+
+        #Run the Haar processing to look for faces (then LBP if it doesnt find a match on detected face)
+        self.lbp_processing(self, args.file)
+
+        #Run the human processing function so we can look for human-forms
+        self.human_processing(self, args.file)
+
+    #If the script/class quits, close the connection cleanly
+    def __del__(self):
+        logger.info("Script has finished")
+
+    #Function to use Haar against the video file. This usally works better so we use it first. If it doesnt get a face, we skip over to the LBP function
+    def haar_processing(self, process_file):
+        print()
+
+    #Function to use LBP against the face snapshots captured to see if we can pull out a match
+    def lbp_processing(self):
+        print()
+
+    #Function to check the video for any human-forms
+    def human_processing(self, process_file):
+        print()
 
 ### THE THING ###
 if __name__ == '__main__':
+    #Set up and parse through the arguments in order to determine what we need to do
+    parser = argparse.ArgumentParser()
+    required_args = parser.add_argument_group('required arguments')
+    required_args.add_argument("-t", dest="time", required=False, type=int) #Time to wait before tunning the script
+    required_args.add_argument("-f", dest="file", required=True, type=str) #File that we are going to process
+
+    args = parser.parse_args()
+
     #Parse through config file to get the info we need
     parse_config()
