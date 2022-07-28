@@ -31,16 +31,9 @@ Arguments:
         -Note that some commands may take additional arguments to get the expected result! Refer to the README in order to determine when to use these 
 
 To Do:
-<<<<<<< HEAD
-    -Start adding other script calls to activate the security system
-    -Find a way to change color/bold of system status reading
-    -Testing!!
-    -Create requirements file using pipreqs - https://blog.jcharistech.com/2020/11/02/how-to-create-requirements-txt-file-in-python/
-=======
     -See if we are able to use HTTPS for this....
     -Set up more error checking
     -Set up more logging
->>>>>>> parent of 7a783bf (Update blue_ss_cctv.py)
 
 '''
 
@@ -153,7 +146,6 @@ class ssblue_iris:
             except:
                 logger.error("Unable to set profile to: %s", argvs)
 
-<<<<<<< HEAD
             else:
                 #Shut off the alarm if it is running
                 if self.alarm_started:
@@ -248,12 +240,9 @@ class ssblue_iris:
                 self.thread_countdown.start()
 
         #Error checking for incorrect passcode
-=======
->>>>>>> parent of 7a783bf (Update blue_ss_cctv.py)
         else:
             logger.error("Invalid command given! %s", command)
 
-<<<<<<< HEAD
             #Error checking for if system is already in disarmed state
             if self.status == "DISARMED":
                 playsound(error_sound)
@@ -389,12 +378,10 @@ class ssblue_iris:
                     logger.error("Error sending alert email!!!")
 
         return
-=======
     #Send alerts if needed based on the action that was done so the user gets a confirmation or a notification of what happened
     def send_alert(msg_data):
         print("SEND ALERTS NOT YET IMPLIMENTED")
         
->>>>>>> parent of 7a783bf (Update blue_ss_cctv.py)
 
 ### THE THING ###
 if __name__ == '__main__':

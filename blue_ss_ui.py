@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/python3
 
 '''
 TITLE: BlueSS UI
@@ -75,6 +75,9 @@ def parse_config():
                 try:
                     if "alarm_sound:" in row:
                         alarm_sound = (row.split("alarm_sound:")[1].replace("\n", ""))
+
+                        if "<" in alarm_sound:
+                            alarm_sound = f'{os.path.dirname(__file__)}\\sounds\\alarm.wav'
                 except:
                         logger.error("Unable to read alarm_sound from config file! Please check syntax!")
                         quit()
@@ -82,6 +85,9 @@ def parse_config():
                 try:
                     if "error_sound:" in row:
                         error_sound = (row.split("error_sound:")[1].replace("\n", ""))
+
+                        if "<" in error_sound:
+                            error_sound = f'{os.path.dirname(__file__)}\\sounds\\error.wav'
                 except:
                         logger.error("Unable to read error_sound from config file! Please check syntax!")
                         quit()
@@ -89,6 +95,9 @@ def parse_config():
                 try:
                     if "beep_sound:" in row:
                         beep_sound = (row.split("beep_sound:")[1].replace("\n", ""))
+
+                        if "<" in beep_sound:
+                            beep_sound = f'{os.path.dirname(__file__)}\\sounds\\beep.wav'
                 except:
                         logger.error("Unable to read beep_sound from config file! Please check syntax!")
                         quit()
@@ -96,6 +105,9 @@ def parse_config():
                 try:
                     if "armed_sound:" in row:
                         armed_sound = (row.split("armed_sound:")[1].replace("\n", ""))
+
+                        if "<" in armed_sound:
+                            armed_sound = f'{os.path.dirname(__file__)}\\sounds\\armed.wav'
                 except:
                         logger.error("Unable to read armed_sound from config file! Please check syntax!")
                         quit()
@@ -400,7 +412,7 @@ class main_panel(wx.Frame):
                 i += 1
 
             else:
-                return
+                continue
 
         #30sec notice
         self.code.SetValue("System Arming in 30 seconds!")
@@ -414,7 +426,7 @@ class main_panel(wx.Frame):
                 i += 1
 
             else:
-                return
+                continue
 
         #10sec notice
         self.code.SetValue("System Arming in 10 seconds!")
@@ -426,7 +438,7 @@ class main_panel(wx.Frame):
                 i += 1
 
             else:
-                return
+                continue
 
         #Call the scripts to actually arm the system
         if not self.button_success:

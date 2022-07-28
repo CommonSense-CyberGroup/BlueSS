@@ -1,3 +1,9 @@
 2022-07-28 11:50:55,580 - blue_ss UI Script Log - CRITICAL - Error Occurred when opening config file! Closing!
 2022-07-28 11:52:51,647 - blue_ss UI Script Log - CRITICAL - Error Occurred when opening config file! Closing! -- <built-in function exc_info>
 2022-07-28 11:53:08,062 - blue_ss UI Script Log - CRITICAL - Error Occurred when opening config file! Closing! -- (<class 'OSError'>, OSError(22, 'Invalid argument'), <traceback object at 0x000002903B862A00>)
+2022-07-28 12:07:20,833 - blue_ss UI Script Log - ERROR - Incorrect passcode entered
+2022-07-28 12:07:26,917 - blue_ss UI Script Log - INFO - Cleared Security Code due to input timeout
+2022-07-28 12:07:28,871 - blue_ss UI Script Log - ERROR - Incorrect passcode entered
+2022-07-28 12:07:34,959 - blue_ss UI Script Log - INFO - Cleared Security Code due to input timeout
+2022-07-28 12:08:46,990 - blue_ss UI Script Log - ERROR - Incorrect passcode entered
+2022-07-28 12:14:52,916 - blue_ss UI Script Log - INFO - System has been armed! Status: ARMED
