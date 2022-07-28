@@ -7,7 +7,7 @@ BY:
     Common Sense Cyber Group
 
 Created: 11/17/2021
-Updated: 11/18/2021
+Updated: 07/28/2022
 
 Version: 1.1.2
 
@@ -41,6 +41,8 @@ import smtplib          #https://docs.python.org/3/library/smtplib.html - Used f
 import ssl              #https://docs.python.org/3/library/ssl.html - Used for sending out email alerts to designated people
 from datetime import datetime   #https://docs.python.org/3/library/datetime.html - Used for getting the current time
 import subprocess   #https://docs.python.org/3/library/subprocess.html - Used for subprocessing other scripts to arm and disarm the connected systems
+import sys      #https://docs.python.org/3.8/library/sys.html - Used to log errors and other script information
+import os       #https://docs.python.org/3.8/library/os.html - Used for OS related tasks
 
 ### DEFINE VARIABLES ###
 #Set up logging for user activities
@@ -65,7 +67,7 @@ def parse_config():
 
     #Open the config file
     try:
-        with open('H:\\CSCyberGroup\\Scripts\\BlueSS\\blue_ss.conf') as file:
+        with open(f'{os.path.dirname(__file__)}\\blue_ss.conf') as file:
             rows = file.readlines()
 
             for row in rows:
@@ -194,7 +196,7 @@ def parse_config():
                         quit()
 
     except:
-        logger.critical("Error Occurred when opening config file! Closing!")
+        logger.critical("Error Occurred when opening config file! Closing! -- %s", sys.exc_info())
         quit()
 
 #Class for the main GUI panel
