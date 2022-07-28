@@ -89,7 +89,7 @@ class ssblue_iris:
         logger.info("Closed session to the host server")
 
     #Execute the command that the user/server requested
-    def execute(self, command, argvs):
+    def execute(self, command, args):
         """
         Required possible commands - 
 
@@ -109,46 +109,46 @@ class ssblue_iris:
         #Requires command args to be '-a camera=<camera name>'
         if command == "camera_details":
             try:
-                self.send_alert(self.bi_server.get_camera_details(argvs))
+                self.send_alert(self.bi_server.get_camera_details(args))
                 logger.info("Sent camera details!")
             except:
-                logger.error("Unable to gather information for requested camera: %s", argvs)
+                logger.error("Unable to gather information for requested camera: %s", args)
 
         #Requires command args to be '-a camera=<camera name>, seconds=<seconds to pause camera>'
         if command == "pause_camera_time":
             try:
-                self.bi_server.pause_camera(argvs)
-                logger.info("Paused camera with following params: %s", argvs)
-                self.send_alert("Pased camera with following params: ", argvs)
+                self.bi_server.pause_camera(args)
+                logger.info("Paused camera with following params: %s", args)
+                self.send_alert("Pased camera with following params: ", args)
             except:
-                logger.error("Unable to pause camera: %s", argvs)
+                logger.error("Unable to pause camera: %s", args)
 
         #Requires command args to be '-a camera=<camera name>'
         if command == "pause_camera_indef":
             try:
-                self.bi_server.pause_camera_indefinitely(argvs)
-                logger.info("Paused camera indefinitely: %s", argvs)
-                self.send_alert("Indefinitely paused camera: ", argvs)
+                self.bi_server.pause_camera_indefinitely(args)
+                logger.info("Paused camera indefinitely: %s", args)
+                self.send_alert("Indefinitely paused camera: ", args)
             except:
-                logger.error("Unable to indefinitely pause camera: %s", argvs)
+                logger.error("Unable to indefinitely pause camera: %s", args)
         
         #Requires command args to be '-a camera=<camera name>'
         if command == "unpause_camera":
             try:
-                self.bi_server.unpause_camera(argvs)
-                logger.info("Unpaused camera: %s", argvs)
-                self.send_alert("Unpaused camera: ", argvs)
+                self.bi_server.unpause_camera(args)
+                logger.info("Unpaused camera: %s", args)
+                self.send_alert("Unpaused camera: ", args)
             except:
-                logger.error("Unable to unpause camera: %s", argvs)
+                logger.error("Unable to unpause camera: %s", args)
 
         #Requires command args to be '-a profile_index=<profile name>'
         if command == "set_status":
             try:
-                self.bi_server.set_status_profile_by_name(argvs)
-                logger.info("Set profile status to: %s", argvs)
-                self.send_alert("Set camera profile to: ", argvs)
+                self.bi_server.set_status_profile_by_name(args)
+                logger.info("Set profile status to: %s", args)
+                self.send_alert("Set camera profile to: ", args)
             except:
-                logger.error("Unable to set profile to: %s", argvs)
+                logger.error("Unable to set profile to: %s", args)
 
         else:
             logger.error("Invalid command given! %s", command)
