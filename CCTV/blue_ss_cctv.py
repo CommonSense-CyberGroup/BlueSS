@@ -7,7 +7,7 @@ BY:
     Common Sense Cyber Group
 
 Created: 11/12/2021
-Updated: 11/12/2021
+Updated: 07/28/2022
 
 Version: 1.0.1
 
@@ -31,9 +31,6 @@ Arguments:
         -Note that some commands may take additional arguments to get the expected result! Refer to the README in order to determine when to use these 
 
 To Do:
-    -Start adding other script calls to activate the security system
-    -Find a way to change color/bold of system status reading
-    -Testing!!
     -Create requirements file using pipreqs - https://blog.jcharistech.com/2020/11/02/how-to-create-requirements-txt-file-in-python/
     -See if we are able to use HTTPS for this....
     -Set up more error checking
